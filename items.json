@@ -8,10 +8,7 @@
     "volume": "250 ml",
     "symbol": "*",
     "color": "cyan",
-    "use_action": {
-      "type": "iuse_function",
-      "function": "SKYISLAND_WARP_OBELISK"
-    }
+    "use_action": "SKYISLAND_WARP_OBELISK"
   },
   {
     "type": "GENERIC",
@@ -22,10 +19,7 @@
     "volume": "250 ml",
     "symbol": "*",
     "color": "light_green",
-    "use_action": {
-      "type": "iuse_function",
-      "function": "SKYISLAND_RETURN_OBELISK"
-    }
+    "use_action": "SKYISLAND_RETURN_OBELISK"
   },
   {
     "type": "GENERIC",

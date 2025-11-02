@@ -101,7 +101,6 @@ mod.use_warp_obelisk = function(who, item, pos)
   -- Show raid type menu
   local ui = UiList.new()
   ui:title(locale.gettext("Select Expedition Type"))
-  ui:text(locale.gettext("Choose how long you want to stay away:"))
   ui:add(1, locale.gettext("Quick Raid (Test)"))
   ui:add(2, locale.gettext("Cancel"))
 
@@ -153,13 +152,13 @@ mod.use_return_obelisk = function(who, item, pos)
   end
 
   -- Confirmation dialog
-  local popup = QueryPopup.new()
-  popup:message(string.format(
-    "Return home? Sickness level: %d/12",
-    storage.sickness_counter
-  ))
+  local confirm_ui = UiList.new()
+  confirm_ui:title(string.format("Return home? Sickness: %d/12", storage.sickness_counter))
+  confirm_ui:add(1, locale.gettext("Yes, return home"))
+  confirm_ui:add(2, locale.gettext("No, stay"))
+  local confirm = confirm_ui:query()
 
-  if popup:query_yn() == "YES" then
+  if confirm == 1 then
     -- Teleport back home
     local home_omt = Tripoint.new(
       storage.home_location.x,

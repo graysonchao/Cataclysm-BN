@@ -9,10 +9,7 @@
     "move_cost_mod": -1,
     "required_str": -1,
     "flags": [ "TRANSPARENT", "FLAMMABLE_HARD" ],
-    "examine_action": {
-      "type": "iuse_function",
-      "function": "SKYISLAND_WARP_OBELISK"
-    }
+    "examine_action": "none"
   },
   {
     "type": "furniture",
@@ -24,9 +21,6 @@
     "move_cost_mod": -1,
     "required_str": -1,
     "flags": [ "TRANSPARENT", "FLAMMABLE_HARD" ],
-    "examine_action": {
-      "type": "iuse_function",
-      "function": "SKYISLAND_RETURN_OBELISK"
-    }
+    "examine_action": "none"
   }
 ]
