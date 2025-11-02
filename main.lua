@@ -40,10 +40,26 @@ local function get_player_omt()
   return omt
 end
 
--- Helper: Teleport player to OMT coordinates
-local function teleport_to_omt(omt)
+-- Helper: Teleport player to OMT coordinates with offset
+local function teleport_to_omt(omt, offset_tiles)
   gdebug.log_info(string.format("Teleporting to OMT: %s, %s, %s", omt.x, omt.y, omt.z))
   gapi.place_player_overmap_at(omt)
+
+  -- If offset specified, move player after teleport
+  if offset_tiles then
+    local player = gapi.get_avatar()
+    if player then
+      local current_pos = player:get_pos_ms()
+      local new_pos = Tripoint.new(
+        current_pos.x + offset_tiles.x,
+        current_pos.y + offset_tiles.y,
+        current_pos.z + offset_tiles.z
+      )
+      player:set_pos_ms(new_pos)
+      gdebug.log_info(string.format("Applied offset: %d, %d, %d", offset_tiles.x, offset_tiles.y, offset_tiles.z))
+    end
+  end
+
   gapi.add_msg("You feel reality shift around you...")
 end
 
@@ -89,13 +105,14 @@ mod.use_warp_obelisk = function(who, item, pos)
     return 0
   end
 
-  -- Store home location
+  -- Store home location (3 tiles north of warp obelisk for return spawn point)
   local home_omt = get_player_omt()
   if not home_omt then
     gapi.add_msg("ERROR: Could not determine position!")
     return 0
   end
 
+  -- Note: We'll store the OMT, then teleport will adjust submaps position
   storage.home_location = { x = home_omt.x, y = home_omt.y, z = home_omt.z }
 
   -- Show raid type menu
@@ -110,11 +127,11 @@ mod.use_warp_obelisk = function(who, item, pos)
     -- Start quick raid
     gapi.add_msg("Initiating warp sequence...")
 
-    -- Teleport to random nearby location (for PoC, just offset by a few OMTs)
+    -- Teleport to random nearby location at ground level (z=0)
     local dest_omt = Tripoint.new(
       home_omt.x + gapi.rng(-5, 5),
       home_omt.y + gapi.rng(-5, 5),
-      home_omt.z
+      0  -- Always teleport to ground level to avoid fall damage
     )
 
     teleport_to_omt(dest_omt)
@@ -159,14 +176,15 @@ mod.use_return_obelisk = function(who, item, pos)
   local confirm = confirm_ui:query()
 
   if confirm == 1 then
-    -- Teleport back home
+    -- Teleport back home (1 tile north of return obelisk)
     local home_omt = Tripoint.new(
       storage.home_location.x,
       storage.home_location.y,
       storage.home_location.z
     )
 
-    teleport_to_omt(home_omt)
+    -- Offset 1 tile north (negative Y in map coordinates)
+    teleport_to_omt(home_omt, Tripoint.new(0, -1, 0))
 
     -- Clear away status
     storage.is_away_from_home = false
