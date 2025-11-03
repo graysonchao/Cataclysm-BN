@@ -25,6 +25,10 @@ table.insert(game.hooks.on_game_save, function(...)
   return mod.on_game_save(...)
 end)
 
+table.insert(game.hooks.on_char_death, function(...)
+  return mod.on_char_death(...)
+end)
+
 table.insert(game.hooks.on_character_death, function(...)
   return mod.on_character_death(...)
 end)

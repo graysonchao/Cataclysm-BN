@@ -131,15 +131,17 @@ mod.use_warp_obelisk = function(who, item, pos)
     return 0
   end
 
-  -- Store home location (3 tiles north of warp obelisk for return spawn point)
+  -- Store home location as absolute MS coordinates (for resurrection)
+  local player_pos_ms = who:get_pos_ms()
+  local home_abs_ms = gapi.get_map():get_abs_ms(player_pos_ms)
+  storage.home_location = { x = home_abs_ms.x, y = home_abs_ms.y, z = home_abs_ms.z }
+
+  -- Also get OMT for teleportation
   local home_omt = get_player_omt()
   if not home_omt then
     gapi.add_msg("ERROR: Could not determine position!")
     return 0
   end
-
-  -- Note: We'll store the OMT, then teleport will adjust submaps position
-  storage.home_location = { x = home_omt.x, y = home_omt.y, z = home_omt.z }
 
   -- Show raid type menu
   local ui = UiList.new()
@@ -270,33 +272,103 @@ mod.on_game_save = function()
     tostring(storage.is_away_from_home), storage.sickness_counter or 0))
 end
 
--- Character death hook - resurrection PoC
-mod.on_character_death = function()
-  gdebug.log_info("Sky Islands: Player died!")
+-- Resurrection sickness tick - forcibly stabilize the player
+mod.resurrection_sickness_tick = function()
+  local player = gapi.get_avatar()
+  if not player then return true end
 
-  if storage.is_away_from_home and storage.home_location then
+  -- Check if player has resurrection sickness effect
+  local res_sick_effect = EffectTypeId.new("skyisland_resurrection_sickness")
+  if player:has_effect(res_sick_effect) then
+    -- Get remaining duration before clearing
+    local remaining_dur = player:get_effect_dur(res_sick_effect)
+
+    -- Clear ALL effects (including broken limbs, poison, etc.)
+    player:clear_effects()
+
+    -- Forcibly heal all parts to 10 HP
+    player:set_all_parts_hp_cur(10)
+
+    -- Set pain to 10 if it's greater than 10
+    if player:get_pain() > 10 then
+      player:set_pain(10)
+    end
+
+    -- Re-apply resurrection sickness with remaining duration
+    player:add_effect(res_sick_effect, remaining_dur)
+
+    return true  -- Keep running while effect is active
+  else
+    return false  -- Stop running when effect expires
+  end
+end
+
+-- Character death hook (early) - clear effects and heal before broken limbs lock in
+mod.on_char_death = function()
+  gdebug.log_info("Sky Islands: on_char_death fired")
+
+  if storage.home_location then
+    local player = gapi.get_avatar()
+    if not player then return end
+
+    -- Clear all effects (including broken limb effects) EARLY
+    player:clear_effects()
+    -- Heal everything to prevent broken limbs from locking in
+    player:set_all_parts_hp_cur(10)
+
+    gdebug.log_info("Sky Islands: Cleared effects and healed in on_char_death")
+  end
+end
+
+-- Character death hook (late) - actual resurrection and teleportation
+mod.on_character_death = function()
+  gdebug.log_info("Sky Islands: on_character_death fired")
+  gdebug.log_info(string.format("  home_location: %s", tostring(storage.home_location)))
+
+  if storage.home_location then
+    gdebug.log_info("Sky Islands: Resurrecting at home")
     gapi.add_msg("Using emergency warp to return home...")
 
-    -- Teleport back
-    local home_omt = Tripoint.new(
+    local player = gapi.get_avatar()
+    if not player then return end
+
+    -- Build home position from stored abs_ms coordinates
+    local home_abs_ms = Tripoint.new(
       storage.home_location.x,
       storage.home_location.y,
       storage.home_location.z
     )
-    teleport_to_omt(home_omt)
 
-    -- Resurrect with minimal HP
-    local player = gapi.get_avatar()
-    if player then
-      player:set_all_parts_hp_cur(10)
-    end
+    -- Convert abs_ms to OMT for overmap placement
+    local home_omt = coords.ms_to_omt(home_abs_ms)
+    gapi.place_player_overmap_at(home_omt)
+
+    -- Convert abs_ms to local_ms for exact positioning
+    local local_pos = gapi.get_map():get_local_ms(home_abs_ms)
+    gapi.place_player_local_at(local_pos)
 
     -- Mark raid as failed
     storage.is_away_from_home = false
     storage.sickness_counter = 0
     storage.raids_lost = (storage.raids_lost or 0) + 1
 
+    -- Set HP immediately
+    player:set_all_parts_hp_cur(10)
+
+    -- Set pain to 10 for resurrection penalty
+    player:set_pain(10)
+
+    -- Apply resurrection sickness effect to stabilize over 10 seconds
+    local res_sick_effect = EffectTypeId.new("skyisland_resurrection_sickness")
+    player:add_effect(res_sick_effect, TimeDuration.from_seconds(10))
+
+    -- Start resurrection stabilization tick (runs every second)
+    gapi.add_on_every_x_hook(TimeDuration.from_seconds(1), function()
+      return mod.resurrection_sickness_tick()
+    end)
+
     gapi.add_msg("You respawn at home, badly wounded!")
+    gdebug.log_info(string.format("Resurrected at home abs_ms: %d, %d, %d", home_abs_ms.x, home_abs_ms.y, home_abs_ms.z))
   end
 end
 
