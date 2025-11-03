@@ -20,5 +20,17 @@
         ]
       }
     }
+  },
+  {
+    "id": "MISSION_SLAUGHTER_ZOMBIES_10",
+    "type": "mission_definition",
+    "name": { "str": "Kill 10 Zombies" },
+    "goal": "MGOAL_KILL_MONSTER_SPEC",
+    "description": "Zombies have absorbed latent energies which must be released. Kill at least 10 zombified creatures before returning to your sanctuary.",
+    "difficulty": 0,
+    "value": 0,
+    "origins": [ "ORIGIN_GAME_START" ],
+    "monster_species": "ZOMBIE",
+    "monster_kill_goal": 10
   }
 ]

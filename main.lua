@@ -89,6 +89,24 @@ mod.create_extraction_mission = function(center_omt)
   end
 end
 
+-- Create slaughter mission
+mod.create_slaughter_mission = function()
+  local player = gapi.get_avatar()
+  if not player then return end
+
+  local player_id = player:getID()
+  local mission_type = MissionTypeIdRaw.new("MISSION_SLAUGHTER_ZOMBIES_10")
+
+  local new_mission = Mission.reserve_new(mission_type, player_id)
+  if new_mission then
+    new_mission:assign(player)
+    gapi.add_msg("Mission: Kill 10 Zombies!")
+    gdebug.log_info("Created slaughter mission: Kill 10 Zombies")
+  else
+    gdebug.log_error("Failed to create slaughter mission!")
+  end
+end
+
 -- Warp sickness timer tick
 mod.warp_sickness_tick = function()
   if not storage.is_away_from_home then
@@ -131,10 +149,13 @@ mod.use_warp_obelisk = function(who, item, pos)
     return 0
   end
 
-  -- Store home location as absolute MS coordinates (for resurrection)
-  local player_pos_ms = who:get_pos_ms()
-  local home_abs_ms = gapi.get_map():get_abs_ms(player_pos_ms)
-  storage.home_location = { x = home_abs_ms.x, y = home_abs_ms.y, z = home_abs_ms.z }
+  -- Store home location as absolute MS coordinates (for resurrection) - only once
+  if not storage.home_location then
+    local player_pos_ms = who:get_pos_ms()
+    local home_abs_ms = gapi.get_map():get_abs_ms(player_pos_ms)
+    storage.home_location = { x = home_abs_ms.x, y = home_abs_ms.y, z = home_abs_ms.z }
+    gdebug.log_info(string.format("Home location set to: %d, %d, %d", home_abs_ms.x, home_abs_ms.y, home_abs_ms.z))
+  end
 
   -- Also get OMT for teleportation
   local home_omt = get_player_omt()
@@ -172,6 +193,9 @@ mod.use_warp_obelisk = function(who, item, pos)
     -- Create extraction mission (mission's update_mapgen will spawn red room automatically)
     mod.create_extraction_mission(dest_omt)
 
+    -- Create slaughter mission
+    mod.create_slaughter_mission()
+
     -- Start sickness timer
     gapi.add_on_every_x_hook(WARP_SICKNESS_INTERVAL, function()
       return mod.warp_sickness_tick()
@@ -207,15 +231,35 @@ mod.use_return_obelisk = function(who, item, pos)
   local confirm = confirm_ui:query()
 
   if confirm == 1 then
-    -- Teleport back home (1 tile north of return obelisk)
-    local home_omt = Tripoint.new(
+    -- Convert stored abs_ms coordinates to OMT for teleportation
+    local home_abs_ms = Tripoint.new(
       storage.home_location.x,
       storage.home_location.y,
       storage.home_location.z
     )
+    local home_omt = coords.ms_to_omt(home_abs_ms)
 
     -- Offset 1 tile north (negative Y in map coordinates)
     teleport_to_omt(home_omt, Tripoint.new(0, -1, 0))
+
+    -- Clean up missions when returning home
+    -- For now, just complete the extraction mission
+    -- TODO: Properly check if slaughter missions completed their goals
+    local player = gapi.get_avatar()
+    if player then
+      local missions = player:get_active_missions()
+      for _, mission in ipairs(missions) do
+        if mission:in_progress() and not mission:has_failed() then
+          local mission_id = mission:mission_id()
+          if mission_id:str() == "MISSION_REACH_EXTRACT" then
+            -- Extraction mission completed by reaching portal
+            mission:wrap_up()
+            gdebug.log_info("Completed extraction mission")
+          end
+          -- Note: Slaughter missions stay active - need to figure out completion check
+        end
+      end
+    end
 
     -- Clear away status
     storage.is_away_from_home = false
