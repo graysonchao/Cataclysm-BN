@@ -15,19 +15,14 @@ local SICKNESS_STAGES = {
   { threshold = 12, message = "YOU ARE DISINTEGRATING!", intensity = 1 }
 }
 
--- Initialize storage
-local function init_storage()
-  if not storage.initialized then
-    storage.initialized = true
-    storage.home_location = nil
-    storage.is_away_from_home = false
-    storage.sickness_counter = 0
-    storage.raids_total = 0
-    storage.raids_won = 0
-    storage.raids_lost = 0
-    gdebug.log_info("Sky Islands storage initialized")
-  end
-end
+-- Initialize storage defaults (only for new games)
+-- These will be overwritten by saved data on load
+storage.home_location = storage.home_location or nil
+storage.is_away_from_home = storage.is_away_from_home or false
+storage.sickness_counter = storage.sickness_counter or 0
+storage.raids_total = storage.raids_total or 0
+storage.raids_won = storage.raids_won or 0
+storage.raids_lost = storage.raids_lost or 0
 
 -- Helper: Get player position in OMT coordinates
 local function get_player_omt()
@@ -239,16 +234,22 @@ mod.use_return_obelisk = function(who, item, pos)
   end
 end
 
--- Game started hook - initialize
+-- Game started hook - initialize for new games only
 mod.on_game_started = function()
-  init_storage()
+  -- Reset to defaults for new game
+  storage.home_location = nil
+  storage.is_away_from_home = false
+  storage.sickness_counter = 0
+  storage.raids_total = 0
+  storage.raids_won = 0
+  storage.raids_lost = 0
+
   gdebug.log_info("Sky Islands: New game started")
   gapi.add_msg("Sky Islands PoC loaded! Use warp remote to start.")
 end
 
--- Game load hook - restore state
+-- Game load hook - restore state (storage auto-loaded)
 mod.on_game_load = function()
-  init_storage()
   gdebug.log_info("Sky Islands: Game loaded")
   gdebug.log_info(string.format("  Away from home: %s", tostring(storage.is_away_from_home)))
   gdebug.log_info(string.format("  Sickness counter: %d", storage.sickness_counter or 0))

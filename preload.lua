@@ -13,21 +13,20 @@ game.iuse_functions["SKYISLAND_RETURN_OBELISK"] = function(...)
 end
 
 -- Register hooks
--- TODO: Hooks temporarily disabled for testing
--- table.insert(game.hooks.on_game_started, function(...)
---   return mod.on_game_started(...)
--- end)
+table.insert(game.hooks.on_game_started, function(...)
+  return mod.on_game_started(...)
+end)
 
--- table.insert(game.hooks.on_game_load, function(...)
---   return mod.on_game_load(...)
--- end)
+table.insert(game.hooks.on_game_load, function(...)
+  return mod.on_game_load(...)
+end)
 
--- table.insert(game.hooks.on_game_save, function(...)
---   return mod.on_game_save(...)
--- end)
+table.insert(game.hooks.on_game_save, function(...)
+  return mod.on_game_save(...)
+end)
 
--- table.insert(game.hooks.on_character_death, function(...)
---   return mod.on_character_death(...)
--- end)
+table.insert(game.hooks.on_character_death, function(...)
+  return mod.on_character_death(...)
+end)
 
 gdebug.log_info("Sky Islands PoC preload complete")
