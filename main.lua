@@ -63,6 +63,37 @@ local function teleport_to_omt(omt, offset_tiles)
   gapi.add_msg("You feel reality shift around you...")
 end
 
+-- Create extraction mission
+mod.create_extraction_mission = function(center_omt)
+  local player = gapi.get_avatar()
+  if not player then return end
+
+  -- Pick exit location 5-10 OMTs away from player spawn
+  local exit_omt = Tripoint.new(
+    center_omt.x + gapi.rng(-10, 10),
+    center_omt.y + gapi.rng(-10, 10),
+    center_omt.z
+  )
+
+  -- Store exit location for tracking
+  storage.exit_location = { x = exit_omt.x, y = exit_omt.y, z = exit_omt.z }
+
+  -- Create and assign mission using BN's mission API
+  local player_id = player:getID()
+
+  -- Create mission_type_id like we do TerId
+  local mission_type = MissionTypeIdRaw.new("MISSION_REACH_EXTRACT")
+
+  local new_mission = Mission.reserve_new(mission_type, player_id)
+  if new_mission then
+    new_mission:assign(player)
+    gapi.add_msg("Mission: Reach the exit portal!")
+    gdebug.log_info(string.format("Created extraction mission at: %d, %d, %d", exit_omt.x, exit_omt.y, exit_omt.z))
+  else
+    gdebug.log_error("Failed to create extraction mission!")
+  end
+end
+
 -- Warp sickness timer tick
 mod.warp_sickness_tick = function()
   if not storage.is_away_from_home then
@@ -141,13 +172,16 @@ mod.use_warp_obelisk = function(who, item, pos)
     storage.sickness_counter = 0
     storage.raids_total = (storage.raids_total or 0) + 1
 
+    -- Create extraction mission (mission's update_mapgen will spawn red room automatically)
+    mod.create_extraction_mission(dest_omt)
+
     -- Start sickness timer
     gapi.add_on_every_x_hook(WARP_SICKNESS_INTERVAL, function()
       return mod.warp_sickness_tick()
     end)
 
     gapi.add_msg("You arrive at the raid location!")
-    gapi.add_msg("Use the return remote to go back before warp sickness kills you.")
+    gapi.add_msg("Find the red room exit portal to return home before warp sickness kills you.")
 
     return 1
   else
