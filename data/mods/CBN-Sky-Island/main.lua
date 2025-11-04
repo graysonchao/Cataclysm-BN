@@ -242,21 +242,34 @@ mod.use_return_obelisk = function(who, item, pos)
     -- Offset 1 tile north (negative Y in map coordinates)
     teleport_to_omt(home_omt, Tripoint.new(0, -1, 0))
 
-    -- Clean up missions when returning home
-    -- For now, just complete the extraction mission
-    -- TODO: Properly check if slaughter missions completed their goals
+    -- Complete missions when returning home
     local player = gapi.get_avatar()
     if player then
       local missions = player:get_active_missions()
+      local invalid_npc = CharacterId.new()
+
       for _, mission in ipairs(missions) do
         if mission:in_progress() and not mission:has_failed() then
-          local mission_id = mission:mission_id()
-          if mission_id:str() == "MISSION_REACH_EXTRACT" then
-            -- Extraction mission completed by reaching portal
-            mission:wrap_up()
-            gdebug.log_info("Completed extraction mission")
+          local mission_name = mission:name()
+
+          -- Only process raid missions (prefixed with "RAID: ")
+          if mission_name:sub(1, 6) == "RAID: " then
+            -- Always complete extraction mission (survival = success)
+            -- For other missions, check if goal was actually met
+            if mission_name == "RAID: Reach the exit portal!" then
+              mission:wrap_up()
+              gdebug.log_info("Completed extraction mission (survived)")
+              gapi.add_msg("Mission completed: Extraction")
+            elseif mission:is_complete(invalid_npc) then
+              mission:wrap_up()
+              gdebug.log_info(string.format("Completed mission: %s", mission_name))
+              gapi.add_msg(string.format("Mission completed: %s", mission_name))
+            else
+              mission:fail()
+              gdebug.log_info(string.format("Failed mission: %s", mission_name))
+              gapi.add_msg(string.format("Mission failed: %s", mission_name))
+            end
           end
-          -- Note: Slaughter missions stay active - need to figure out completion check
         end
       end
     end
@@ -390,6 +403,19 @@ mod.on_character_death = function()
     -- Convert abs_ms to local_ms for exact positioning
     local local_pos = gapi.get_map():get_local_ms(home_abs_ms)
     gapi.place_player_local_at(local_pos)
+
+    -- Fail all raid missions on death
+    local missions = player:get_active_missions()
+    for _, mission in ipairs(missions) do
+      if mission:in_progress() and not mission:has_failed() then
+        local mission_name = mission:name()
+        -- Only fail raid missions (prefixed with "RAID: ")
+        if mission_name:sub(1, 6) == "RAID: " then
+          mission:fail()
+          gdebug.log_info(string.format("Failed raid mission on death: %s", mission_name))
+        end
+      end
+    end
 
     -- Mark raid as failed
     storage.is_away_from_home = false
