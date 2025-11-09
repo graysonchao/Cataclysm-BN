@@ -1,0 +1,279 @@
+================================================================================
+CATACLYSM-BN MISSION LUA API - QUICK REFERENCE CARD
+================================================================================
+
+MISSION CREATION
+================================================================================
+Mission.reserve_new(type_id, npc_id) -> Mission
+  Usage: local m = game.Mission.reserve_new(
+           game.MissionTypeIdRaw.new("MISSION_BRING_ITEM"), 
+           npc:get_id())
+  Note: Mission assigned to NPC as giver, not player
+
+Mission.reserve_random(origin, pos, npc_id) -> Mission*
+  Usage: local m = game.Mission.reserve_random(
+           game.MissionOrigin.ORIGIN_ANY_NPC,
+           avatar:global_omt_location(),
+           npc:get_id())
+  Note: Returns nil if no suitable type found
+
+MissionType.get_random_mission_id(origin, pos) -> MissionTypeIdRaw
+  Usage: local type = game.MissionType.get_random_mission_id(
+           game.MissionOrigin.ORIGIN_GAME_START,
+           avatar:global_omt_location())
+
+MISSION ASSIGNMENT TO PLAYER
+================================================================================
+Mission:assign(avatar) -> void
+  Usage: mission:assign(gapi.get_avatar())
+  Note: Only works on unassigned missions
+  Effect: Sets in_progress status, initializes deadline, calls start callback
+
+MISSION STATE CHANGES
+================================================================================
+Mission:wrap_up() -> void
+  Effect: Set status to success, calls end callback, removes items
+  Usage: mission:wrap_up()
+
+Mission:fail() -> void
+  Effect: Set status to failure, calls fail callback
+  Usage: mission:fail()
+
+Mission:step_complete(step) -> void
+  Effect: Mark step as complete for multi-step missions
+  Usage: mission:step_complete(1)
+
+MISSION QUERIES - PLAYER MISSIONS
+================================================================================
+Avatar:get_active_missions() -> Vector(Mission)
+  Returns: Table of Mission objects
+  Usage: for _, m in ipairs(avatar:get_active_missions()) do ... end
+
+Avatar:get_completed_missions() -> Vector(Mission)
+  Returns: Table of completed Mission objects
+
+Avatar:get_failed_missions() -> Vector(Mission)
+  Returns: Table of failed Mission objects
+
+MISSION STATUS CHECKS
+================================================================================
+Mission:in_progress() -> bool
+  Returns: True if mission is active
+
+Mission:is_assigned() -> bool
+  Returns: True if mission is assigned to a player
+
+Mission:has_failed() -> bool
+  Returns: True if mission failed
+
+MISSION INFORMATION GETTERS
+================================================================================
+Mission:name() -> string
+  Returns: Mission name
+
+Mission:mission_id() -> MissionTypeIdRaw
+  Returns: Mission type ID
+
+Mission:get_description() -> string
+  Returns: Mission description text
+
+Mission:get_value() -> int
+  Returns: Reward value
+
+Mission:get_id() -> int
+  Returns: Unique mission ID (uid)
+
+Mission:get_type() -> MissionType
+  Returns: MissionType object
+
+Mission:get_target_point() -> Tripoint
+  Returns: Target location (overmap coordinates)
+
+Mission:has_target() -> bool
+  Returns: True if mission has target location
+
+Mission:has_deadline() -> bool
+  Returns: True if mission has deadline
+
+Mission:get_deadline() -> TimePoint
+  Returns: Deadline timestamp
+
+Mission:get_npc_id() -> CharacterId
+  Returns: Mission giver NPC ID
+
+Mission:get_item_id() -> ItypeId
+  Returns: Associated item ID
+
+Mission:has_follow_up() -> bool
+  Returns: True if has follow-up mission
+
+Mission:get_follow_up() -> MissionTypeIdRaw
+  Returns: Follow-up mission type ID
+
+Mission:get_likely_rewards() -> Vector(Pair(int, ItypeId))
+  Returns: Likely reward items
+
+Mission:has_generic_rewards() -> bool
+  Returns: True if has generic rewards
+
+MISSION TYPE QUERIES
+================================================================================
+MissionType.get_all() -> Vector(MissionType)
+  Returns: All available mission types
+  Usage: for _, mt in ipairs(game.MissionType.get_all()) do ... end
+
+MissionType PROPERTIES (Read-Only):
+  .goal -> MissionGoal enum
+  .difficulty -> int
+  .value -> int
+  .deadline_low -> TimeDuration
+  .deadline_high -> TimeDuration
+  .urgent -> bool
+  .has_generic_rewards -> bool
+  .likely_rewards -> Vector
+  .origins -> Vector(MissionOrigin)
+  .item_id -> ItypeId
+  .item_count -> int
+  .target_npc_id -> CharacterId
+  .monster_type -> MtypeId
+  .monster_kill_goal -> int
+  .follow_up -> MissionTypeIdRaw
+
+MissionType:tname() -> string
+  Returns: Translated mission type name
+
+ENUMS - MISSION ORIGIN
+================================================================================
+game.MissionOrigin.ORIGIN_NULL = 0
+game.MissionOrigin.ORIGIN_GAME_START = 1
+game.MissionOrigin.ORIGIN_OPENER_NPC = 2
+game.MissionOrigin.ORIGIN_ANY_NPC = 3
+game.MissionOrigin.ORIGIN_SECONDARY = 4
+game.MissionOrigin.ORIGIN_COMPUTER = 5
+
+ENUMS - MISSION GOAL
+================================================================================
+game.MissionGoal.MGOAL_NULL = 0
+game.MissionGoal.MGOAL_GO_TO = 1
+game.MissionGoal.MGOAL_GO_TO_TYPE = 2
+game.MissionGoal.MGOAL_FIND_ITEM = 3
+game.MissionGoal.MGOAL_FIND_ANY_ITEM = 4
+game.MissionGoal.MGOAL_FIND_ITEM_GROUP = 5
+game.MissionGoal.MGOAL_FIND_MONSTER = 6
+game.MissionGoal.MGOAL_FIND_NPC = 7
+game.MissionGoal.MGOAL_ASSASSINATE = 8
+game.MissionGoal.MGOAL_KILL_MONSTER = 9
+game.MissionGoal.MGOAL_KILL_MONSTER_TYPE = 10
+game.MissionGoal.MGOAL_RECRUIT_NPC = 11
+game.MissionGoal.MGOAL_RECRUIT_NPC_CLASS = 12
+game.MissionGoal.MGOAL_COMPUTER_TOGGLE = 13
+game.MissionGoal.MGOAL_KILL_MONSTER_SPEC = 14
+game.MissionGoal.MGOAL_TALK_TO_NPC = 15
+game.MissionGoal.MGOAL_CONDITION = 16
+
+COMMON PATTERNS
+================================================================================
+
+Create and Assign Mission:
+  local m = game.Mission.reserve_new(
+    game.MissionTypeIdRaw.new("MISSION_ID"),
+    npc:get_id()
+  )
+  m:assign(gapi.get_avatar())
+
+Create Random Mission:
+  local m = game.Mission.reserve_random(
+    game.MissionOrigin.ORIGIN_ANY_NPC,
+    gapi.get_avatar():global_omt_location(),
+    npc:get_id()
+  )
+  if m then m:assign(gapi.get_avatar()) end
+
+Check and Complete Mission:
+  if m:in_progress() then
+    if condition_met then
+      m:wrap_up()
+    else
+      m:fail()
+    end
+  end
+
+Iterate Player Missions:
+  local avatar = gapi.get_avatar()
+  for _, m in ipairs(avatar:get_active_missions()) do
+    gdebug.log_info(m:name())
+  end
+
+LIMITATIONS
+================================================================================
+
+CANNOT:
+  - Create new mission types from Lua (JSON-only)
+  - Modify mission after creation (target, deadline, rewards)
+  - Directly delete missions (only fail/complete)
+  - Create custom mission goals dynamically
+  - Override mission callbacks from Lua
+  - Access internal mission state directly
+
+CAN WORK AROUND BY:
+  - Pre-define mission types in JSON
+  - Use wrap_up() or fail() to manage lifecycle
+  - Create chain missions using follow_up
+  - Query all available missions and select dynamically
+
+BINDING LOCATIONS
+================================================================================
+Mission class: src/catalua_bindings_mission.cpp (lines 16-103)
+MissionType class: src/catalua_bindings_mission.cpp (lines 105-204)
+Avatar mission methods: src/catalua_bindings_creature.cpp (lines 991-993)
+Mission implementation: src/mission.h, src/mission.cpp
+Documentation: docs/en/mod/lua/reference/lua.md (lines 3578-3860)
+
+ERROR HANDLING
+================================================================================
+
+reserve_new() returns:
+  - Valid Mission* pointer on success
+  - Nothing throws exception, check nullptr
+
+reserve_random() returns:
+  - Valid Mission* pointer on success
+  - nil if no suitable type found
+
+assign() errors:
+  - debugmsg() warning if already assigned
+  - Does nothing if already assigned to another player
+
+wrap_up() caveats:
+  - Removes inventory items based on goal type
+  - Only works on in_progress missions
+  - Triggers item consumption for FIND_ITEM goals
+
+MISSION PROPERTY ACCESS
+================================================================================
+
+READ-ONLY Properties via functions:
+  name(), mission_id(), get_description()
+  has_deadline(), get_deadline()
+  has_target(), get_target_point()
+  get_type(), has_follow_up(), get_follow_up()
+  get_value(), get_id(), get_item_id(), get_npc_id()
+  get_likely_rewards(), has_generic_rewards()
+  is_assigned(), in_progress(), has_failed()
+
+NO DIRECT WRITE ACCESS TO:
+  - Mission target location
+  - Mission deadline
+  - Mission value/rewards
+  - Mission description
+  - Mission goal type
+
+SERIALIZATION
+================================================================================
+Mission:serialize(JsonOut) -> void
+  Usage: Not typically used from Lua
+
+Mission:deserialize(JsonIn) -> void
+  Usage: Not typically used from Lua
+
+================================================================================

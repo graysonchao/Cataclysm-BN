@@ -1,0 +1,34 @@
+# Dockerfile for building Cataclysm-BN on macOS using Fedora
+# Based on docs/en/dev/guides/building/atomic_cmake.md
+
+FROM fedora:latest
+
+# Install build dependencies
+RUN dnf install -y \
+    git \
+    cmake \
+    clang \
+    ninja-build \
+    mold \
+    ccache \
+    SDL2-devel \
+    SDL2_image-devel \
+    SDL2_ttf-devel \
+    SDL2_mixer-devel \
+    freetype \
+    glibc \
+    bzip2 \
+    zlib-ng \
+    libvorbis \
+    ncurses \
+    gettext \
+    flac-devel \
+    sqlite-devel \
+    zlib-devel \
+    && dnf clean all
+
+# Set working directory
+WORKDIR /workspace
+
+# Set default command to bash
+CMD ["/bin/bash"]
