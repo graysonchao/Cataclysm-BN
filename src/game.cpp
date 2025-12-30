@@ -1553,7 +1553,24 @@ bool game::do_turn()
 
     perhaps_add_random_npc();
     process_voluntary_act_interrupt();
+
+    // Track if we're in a crafting activity before processing
+    static const activity_id ACT_CRAFT_ID( "ACT_CRAFT" );
+    static const activity_id ACT_DISASSEMBLE_ID( "ACT_DISASSEMBLE" );
+    const bool was_in_crafting_activity = u.has_activity( ACT_CRAFT_ID ) ||
+                                          u.has_activity( ACT_DISASSEMBLE_ID );
+
     process_activity();
+
+    // Catch-up autosave when crafting activity ends
+    if( was_in_crafting_activity &&
+        !u.has_activity( ACT_CRAFT_ID ) &&
+        !u.has_activity( ACT_DISASSEMBLE_ID ) ) {
+        if( get_option<bool>( "AUTOSAVE" ) && !u.is_dead_state() ) {
+            autosave();
+        }
+    }
+
     if( !soundperf ) {
         // Process NPC sound events before they move or they hear themselves talking
         for( npc &guy : all_npcs() ) {
@@ -11804,6 +11821,13 @@ void game::quickload()
 
 void game::autosave()
 {
+    // Don't autosave during crafting activities to prevent crashes
+    static const activity_id ACT_CRAFT_ID( "ACT_CRAFT" );
+    static const activity_id ACT_DISASSEMBLE_ID( "ACT_DISASSEMBLE" );
+    if( u.has_activity( ACT_CRAFT_ID ) || u.has_activity( ACT_DISASSEMBLE_ID ) ) {
+        return;
+    }
+
     //Don't autosave if the min-autosave interval has not passed since the last autosave/quicksave.
     if( time( nullptr ) < last_save_timestamp + 60 * get_option<int>( "AUTOSAVE_MINUTES" ) ) {
         return;
